@@ -1,0 +1,62 @@
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+    "sync"
+)
+
+var (
+    tasks   = []string{}
+    tasksMu sync.Mutex
+)
+
+// Handler to get all tasks
+func getTasks(w http.ResponseWriter, r *http.Request) {
+    tasksMu.Lock()
+    defer tasksMu.Unlock()
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(tasks)
+}
+
+// Handler to add a task
+func addTask(w http.ResponseWriter, r *http.Request) {
+    var task string
+    if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    tasksMu.Lock()
+    tasks = append(tasks, task)
+    tasksMu.Unlock()
+
+    w.WriteHeader(http.StatusCreated)
+    fmt.Fprintf(w, "Task added")
+}
+
+// Handler to delete a task
+func deleteTask(w http.ResponseWriter, r *http.Request) {
+    taskIndex := r.URL.Query().Get("index")
+    if taskIndex == "" {
+        http.Error(w, "Index is required", http.StatusBadRequest)
+        return
+    }
+
+    // Handle delete logic here
+    tasksMu.Lock()
+    tasks = append(tasks[:index], tasks[index+1:]...)
+    tasksMu.Unlock()
+
+    w.WriteHeader(http.StatusNoContent)
+}
+
+func main() {
+    http.HandleFunc("/tasks", getTasks)
+    http.HandleFunc("/task", addTask)
+    log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
